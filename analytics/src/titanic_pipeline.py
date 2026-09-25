@@ -90,7 +90,7 @@ def run_eda(frame):
     for column in ("age", "fare"):
         fig, axes = plt.subplots(1, 2, figsize=(10, 4))
         sns.histplot(frame[column], kde=True, ax=axes[0])
-        sns.boxplot(x=frame[column], ax=axes[1])
+        axes[1].boxplot(frame[column].dropna(), orientation="horizontal")
         fig.tight_layout()
         fig.savefig(ARTIFACTS / f"{column}_distribution.png")
         plt.close(fig)
@@ -101,7 +101,11 @@ def run_eda(frame):
     fig.tight_layout(); fig.savefig(ARTIFACTS / "survival_breakdowns.png"); plt.close(fig)
     fig, ax = plt.subplots(figsize=(7, 5)); sns.heatmap(correlation, annot=True, cmap="coolwarm", ax=ax); fig.tight_layout(); fig.savefig(ARTIFACTS / "correlation_heatmap.png"); plt.close(fig)
     fig, axes = plt.subplots(1, 2, figsize=(12, 4))
-    sns.boxplot(data=frame, x="survived", y="fare", ax=axes[0])
+    axes[0].boxplot(
+        [frame.loc[frame["survived"] == outcome, "fare"] for outcome in (0, 1)],
+        tick_labels=["not survived", "survived"],
+    )
+    axes[0].set(xlabel="Survived", ylabel="Fare")
     sns.scatterplot(data=frame, x="age", y="fare", hue="survived", ax=axes[1])
     fig.tight_layout(); fig.savefig(ARTIFACTS / "multivariate_story.png"); plt.close(fig)
 
