@@ -1,111 +1,43 @@
-# My Repository
+# Zepto Data & AI Platform
 
-This repository contains three main modules: **Data Pipeline**, **Analytics**, and **Support Assistant**. Each module is designed to handle specific tasks and can be executed independently. Below are the details for setting up and running each module, as well as some design decisions made during the development of this project.
+This single repository contains the three capstone modules: a Books to Scrape data-engineering pipeline, a Titanic analytics/modeling pipeline, and a grounded Zepto policy assistant.
 
-## Project Structure
+## Setup
 
-```
-my-repository
-├── README.md
-├── data_pipeline
-│   ├── README.md
-│   ├── src
-│   ├── tests
-│   └── requirements.txt
-├── analytics
-│   ├── README.md
-│   ├── src
-│   ├── tests
-│   └── requirements.txt
-├── support_assistant
-│   ├── README.md
-│   ├── src
-│   ├── tests
-│   └── requirements.txt
-└── .gitignore
+Each module owns its dependencies. From the repository root, install them with:
+
+```powershell
+python -m pip install -r data_pipeline/requirements.txt
+python -m pip install -r analytics/requirements.txt
+python -m pip install -r support_assistant/requirements.txt
 ```
 
-## Setup Instructions
+SQLite is provided by Python. The analytics pipeline needs network access only on its first Seaborn Titanic load; `analytics/titanic.csv` is the committed offline fallback. The support assistant defaults to `MOCK_LLM=1`, requiring no API key or LLM network call.
 
-1. **Clone the Repository**
-   ```
-  git clone https://github.com/vivekreddy1994/capstone_project.git
-  cd capstone_project
-   ```
+## Run End to End
 
-2. **Install Dependencies**
-   Each module has its own `requirements.txt` file. Navigate to each module's directory and install the required packages using pip:
-   ```
-  python -m pip install --upgrade pip
-  python -m pip install pandas pytest
-   cd data_pipeline
-  python -m pip install -r requirements.txt
-   cd ../analytics
-  python -m pip install -r requirements.txt
-   cd ../support_assistant
-  python -m pip install -r requirements.txt
-   ```
-  `pandas` is used by the data and analytics pipelines, and `pytest` runs the repository test suite. SQLite is included with Python and does not need a pip package.
+```powershell
+python -m data_pipeline.main
+python analytics/src/titanic_pipeline.py
+uvicorn support_assistant.src.assistant:app --reload
+```
 
-3. **Verify Git and Python Tools**
-  Run these commands from the repository root:
-  ```powershell
-  git --version
-  python --version
-  python -m pytest --version
-  ```
-  If `git` is not recognized on Windows, install Git for Windows, reopen VS Code, and run the commands again.
+Then call the assistant:
 
-4. **Run Tests**
-  ```powershell
-  python -m pytest data_pipeline/tests support_assistant/tests analytics/tests
-  ```
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/ask -Method Post -ContentType 'application/json' -Body '{"query":"What is the delivery fee?"}'
+```
 
-5. **Demonstrate the Required Branch Workflow**
-  These commands create a feature branch, make two commits, and merge it back into `main`:
-  ```powershell
-  git switch main
-  git pull --ff-only origin main
-  git switch -c feature/capstone-validation
-  git add README.md
-  git commit -m "Document capstone setup and validation"
-  git add .
-  git commit -m "Complete capstone implementation updates"
-  git switch main
-  git merge --no-ff feature/capstone-validation -m "Merge capstone validation feature"
-  git push origin main
-  git log --graph --oneline --decorate --all
-  ```
+Run tests:
 
-## Module Execution Guidelines
-
-### Data Pipeline
-- From the repository root, run the scraper, cleaner, and SQLite loader using:
-  ```
-  python -m data_pipeline.main
-  ```
-  The default run writes `books.db` and uses Books to Scrape as its free public source.
-
-### Analytics
-- From the repository root, run the analytics ingestion path using:
-  ```
-  python -m analytics.src.main
-  ```
-  The pipeline writes cleaned output to `processed_books.csv`.
-
-### Support Assistant
-- From the repository root, start the policy support CLI using:
-  ```
-  python -m support_assistant.src.assistant
-  ```
+```powershell
+python -m pytest data_pipeline/tests analytics/tests support_assistant/tests -q
+```
 
 ## Design Decisions
 
-- **Modular Structure**: Each module is separated into its own directory to promote clean organization and maintainability.
-- **Testing**: Each module includes a `tests` directory with unit tests to ensure functionality and reliability.
-- **Configuration Management**: Configuration settings are centralized in `config.py` files within the respective modules to simplify adjustments and environment management.
-- **Documentation**: Each module contains its own `README.md` file to provide specific instructions and details relevant to that module.
+- **Data pipeline:** `requests` and `BeautifulSoup` scrape five Books to Scrape catalogue pages and detail-page categories. Typed cleaning produces `price_gbp`, `price_inr`, integer `rating`, and boolean `in_stock`; SQLite normalizes categories and books with a foreign key. Required SQL output plus equivalent `pd.read_sql`/`pd.merge` output are written by `data_pipeline.main`.
+- **Analytics:** `analytics/src/titanic_pipeline.py` loads Titanic once, immediately saves the CSV fallback, applies the missingness threshold rule, creates the required EDA charts and interpretations, and uses train-only `ColumnTransformer` preprocessing for all classifiers. It also performs SMOTE-on-training-only, Random Forest GridSearchCV with OOB scoring, fare regression, and saves a complete joblib pipeline.
+- **Support assistant:** `support_assistant/src/assistant.py` ingests eight exact policy documents, embeds them locally, stores vectors in ChromaDB, routes through LangGraph, and returns deterministic Pydantic JSON in mock mode. The optional real mode is gated only by `MOCK_LLM=0`.
 
-The modules are linked by one data lifecycle: the data pipeline produces a relational source for analysts, the analytics module cleans and profiles structured records, and the support assistant exposes deterministic policy responses behind a small service boundary. Each module keeps its own `requirements.txt`; SQLite is provided by Python and is not installed from pip.
-
-This project aims to provide a comprehensive solution for data processing, analytics, and user support, with a focus on modularity and ease of use.
+See each module README for detailed decisions, metrics, outputs, and Docker instructions. The required Git workflow is a feature branch with at least two commits merged back into `main`; inspect it with `git log --graph --oneline --decorate --all`.
