@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "my-data-pipeline-project"
+version = "0.1.0"
+description = "A data pipeline and analytics project for scraping, cleaning, and predictive modeling."
+authors = ["Your Name <your.email@example.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+requests = "^2.25.1"
+pandas = "^1.2.3"
+numpy = "^1.20.1"
+scikit-learn = "^0.24.1"
+beautifulsoup4 = "^4.9.3"
+jupyter = "^1.0.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
