@@ -1,49 +1,46 @@
-import unittest
-from data_pipeline.extractor import extract_books
-from data_pipeline.processor import clean_data
-from data_pipeline.database import create_database, insert_books
 import os
+import sqlite3
+import tempfile
+import unittest
+
+from data_pipeline.database import create_database, insert_books, run_required_queries
+from data_pipeline.processor import clean_and_process_data, validate_data
+
 
 class TestDataPipeline(unittest.TestCase):
-
     def setUp(self):
-        # Create a temporary SQLite database for testing
-        self.db_path = 'test_books.db'
-        create_database(self.db_path)
+        self.database_path = tempfile.NamedTemporaryFile(suffix=".db", delete=False).name
+        create_database(self.database_path)
 
     def tearDown(self):
-        # Remove the temporary database after tests
-        if os.path.exists(self.db_path):
-            os.remove(self.db_path)
+        if os.path.exists(self.database_path):
+            os.remove(self.database_path)
 
-    def test_extract_books(self):
-        books = extract_books()
-        self.assertIsInstance(books, list)
-        self.assertGreater(len(books), 0)
-        self.assertIn('title', books[0])
-        self.assertIn('price', books[0])
-        self.assertIn('star_rating', books[0])
-        self.assertIn('availability', books[0])
-        self.assertIn('category', books[0])
+    def test_cleaning_and_fixed_conversion(self):
+        raw = [{"title": "Book", "price": "£10.00", "star_rating": "Five", "availability": "In stock", "category": "Fiction"}]
+        frame = clean_and_process_data(raw)
+        self.assertEqual(frame.iloc[0]["price_gbp"], 10.0)
+        self.assertEqual(frame.iloc[0]["price_inr"], 1055.0)
+        self.assertEqual(frame.iloc[0]["rating"], 5)
+        self.assertTrue(frame.iloc[0]["in_stock"])
+        self.assertTrue(validate_data(frame))
 
-    def test_clean_data(self):
-        raw_data = [
-            {'title': 'Book 1', 'price': '£10.00', 'star_rating': 'Five', 'availability': 'In stock', 'category': 'Fiction'},
-            {'title': 'Book 2', 'price': '£15.00', 'star_rating': 'Four', 'availability': 'Out of stock', 'category': 'Non-Fiction'},
-        ]
-        cleaned_data = clean_data(raw_data)
-        self.assertIsInstance(cleaned_data, list)
-        self.assertEqual(len(cleaned_data), 2)
-        self.assertEqual(cleaned_data[0]['price'], 1055.0)  # Assuming conversion rate is applied
-
-    def test_insert_books(self):
+    def test_normalized_schema_and_queries(self):
         books = [
-            {'title': 'Book 1', 'price': 1050.0, 'star_rating': 'Five', 'availability': 'In stock', 'category': 'Fiction'},
-            {'title': 'Book 2', 'price': 1575.0, 'star_rating': 'Four', 'availability': 'Out of stock', 'category': 'Non-Fiction'},
+            {"title": "A", "price_gbp": 10.0, "price_inr": 1055.0, "rating": 5, "in_stock": True, "category": "Fiction"},
+            {"title": "B", "price_gbp": 25.0, "price_inr": 2637.5, "rating": 4, "in_stock": False, "category": "Travel"},
         ]
-        insert_books(self.db_path, books)
-        # Verify that the books were inserted correctly
-        # This part would typically involve querying the database and checking the results
+        insert_books(self.database_path, books)
+        connection = sqlite3.connect(self.database_path)
+        tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        self.assertEqual(tables, {"categories", "books"})
+        self.assertEqual(connection.execute("SELECT COUNT(*) FROM books").fetchone()[0], 2)
+        connection.close()
+        results = run_required_queries(self.database_path)
+        self.assertEqual(len(results["order_limit"]), 2)
+        self.assertEqual(results["distinct"], [("Fiction",), ("Travel",)])
+        self.assertEqual(len(results["join"]), 2)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()
