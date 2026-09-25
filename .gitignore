@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+*.db
+*.sqlite3
+*.log
+.pytest_cache/
+.ipynb_checkpoints/
+.vscode/
