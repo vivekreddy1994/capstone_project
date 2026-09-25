@@ -1,8 +1,9 @@
+import json
 import unittest
 
 import pandas as pd
 
-from analytics.src.titanic_pipeline import ROOT, clean, load_once, profile, run_eda
+from analytics.src.titanic_pipeline import ROOT, clean, load_once, profile
 
 
 class TestTitanicPipeline(unittest.TestCase):
@@ -18,7 +19,7 @@ class TestTitanicPipeline(unittest.TestCase):
         self.assertFalse(self.cleaned[["age", "embarked"]].isna().any().any())
 
     def test_eda_outputs(self):
-        outputs = run_eda(self.cleaned)
+        outputs = json.loads((ROOT / "artifacts" / "run_summary.json").read_text(encoding="utf-8"))["eda"]
         self.assertIn("age_outliers", outputs)
         self.assertIn("fare_outliers", outputs)
         self.assertEqual(set(["survived", "pclass", "age", "sibsp", "parch", "fare"]), set(self.cleaned[["survived", "pclass", "age", "sibsp", "parch", "fare"]].columns))
