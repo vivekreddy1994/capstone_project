@@ -29,8 +29,8 @@ my-repository
 
 1. **Clone the Repository**
    ```
-   git clone https://github.com/yourusername/my-repository.git
-   cd my-repository
+  git clone https://github.com/vivekreddy1994/capstone_project.git
+  cd capstone_project
    ```
 
 2. **Install Dependencies**
